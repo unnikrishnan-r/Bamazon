@@ -11,6 +11,7 @@ var loggedInStatus = false;
 var loginUserId = "";
 var loginUserRole = "";
 var separator = "*****************************************************"
+const lowInventoryStock = 5;
 
 const checkLoginQuery = `SELECT users.user_id,user_role.user_role_name 
   FROM users 
@@ -22,7 +23,13 @@ const createProductQuery = "INSERT INTO products SET ?";
 const selectProductsQuery = `SELECT product_id, product_name,  products.dept_id, department.dept_name,
 unit_price , stock_qty
 from products, department
-where products.dept_id = department.dept_id`;
+where products.dept_id = department.dept_id order by product_id`;
+
+const lowInventoryQuery = `SELECT product_id, product_name,  products.dept_id, department.dept_name,
+unit_price , stock_qty
+from products, department
+where products.dept_id = department.dept_id and stock_qty < ? order by product_id`;
+
 
 const createSaleRecordQuery = "INSERT INTO sale_history SET ?";
 
@@ -91,6 +98,66 @@ var customerPanelQuestions = [{
     }
 ];
 
+var managerPanelQuestions = [{
+    type: "list",
+    message: "Please choose your option",
+    name: "managerChoice",
+    choices: [{
+            name: "Add a Product",
+            value: "add-product"
+        },
+        {
+            name: "Update Price/Stock",
+            value: "update-product"
+        },
+        {
+            name: "Low Inventory Report",
+            value: "low-inventory-report"
+        },
+        {
+            name: "Product Catalog",
+            value: "product-catalog"
+        }
+    ]
+
+}];
+
+var addProductQuestions = [{
+        type: "input",
+        message: "Enter a name for your Product",
+        name: "product_name"
+    },
+    {
+        type: "list",
+        message: "Please choose your department",
+        name: "dept_id",
+        choices: [{ //Replace with function to get Dept List from DB
+                name: "Books",
+                value: "1"
+            },
+            {
+                name: "Toys",
+                value: "1"
+            }
+        ]
+    },
+    {
+        type: "input",
+        message: "Enter the price of your Product",
+        name: "unit_price",
+        // validate: function(value) {
+        //     var valid = !isNaN(parseFloat(value));
+        //     return valid || 'Please enter a number';
+        //   },
+        //   filter: Number
+    },
+    {
+        type: "input",
+        message: "Enter current stock of your Product",
+        name: "stock_qty"
+    }
+];
+
 function makeConnection() {
     return new Promise(resolve => {
         connection.connect(function (err) {
@@ -106,7 +173,7 @@ async function queryTable(query, inputs) {
             if (err) throw err;
             resolve(res);
         });
-        // console.log(query1.sql);
+        console.log(query1.sql);
     });
 };
 
@@ -134,9 +201,11 @@ async function validateLogin(userid, password) {
 async function presentRoleBasedOptions(userRole) {
     switch (userRole) {
         case "CUSTOMER":
-             var customerActionStatus = await customerActions();
-             break;
-
+            var customerActionStatus = await customerActions();
+            break;
+        case "MANAGER":
+            var managerActionStatus = await managerActions();
+            break;
     }
 };
 
@@ -167,6 +236,23 @@ async function customerActions() {
         console.log("Thats not a product that we carry.. SORRY!!")
     }
 };
+
+async function managerActions() {
+    var managerResponse = await inquirerPrompt(managerPanelQuestions);
+
+    switch (managerResponse.managerChoice) {
+        case "add-product":
+            var addProductStatus = await addProduct();
+            break;
+        case "product-catalog":
+            var showProductCatalogStatus = await showProductCatalog();
+            break;
+
+        case "low-inventory-report":
+            var lowInventoryStockReportStatus = await showLowInventoryReport();
+            break;
+    }
+}
 
 async function recordSaleTransaction(userId, product, purchaseQty) {
     var saleRecord = {};
@@ -236,6 +322,61 @@ async function showProducts() {
     console.log(table.table(productTable));
     return 1;
 };
+
+async function showProductCatalog() {
+    if (connection.state != "authenticated") {
+        var connectionState = await makeConnection();
+    }
+    var queryResult = await queryTable(selectProductsQuery);
+    productCatalog = queryResult;
+    var productTable = [
+        ["Product Id", "Product Name", "Department", "Unit Price", "Current Stock"]
+    ];
+    queryResult.forEach(element => {
+        productTable.push([
+            element.product_id,
+            element.product_name,
+            element.dept_name,
+            element.unit_price,
+            element.stock_qty
+        ]);
+    });
+    console.log(table.table(productTable));
+    return 1;
+};
+
+async function showLowInventoryReport() {
+    if (connection.state != "authenticated") {
+        var connectionState = await makeConnection();
+    }
+    var queryResult = await queryTable(lowInventoryQuery, lowInventoryStock);
+    productCatalog = queryResult;
+    var productTable = [
+        ["Product Id", "Product Name", "Department", "Unit Price", "Current Stock"]
+    ];
+    queryResult.forEach(element => {
+        productTable.push([
+            element.product_id,
+            element.product_name,
+            element.dept_name,
+            element.unit_price,
+            element.stock_qty
+        ]);
+    });
+    console.log(table.table(productTable));
+    return 1;
+};
+
+async function addProduct() {
+    var addProductResponse = await inquirerPrompt(addProductQuestions);
+    if (connection.state != "authenticated") {
+        var connectionState = await makeConnection();
+    }
+    var queryResult = await queryTable(createProductQuery, addProductResponse);
+    if (queryResult.affectedRows == 1) {
+        console.log("Product Succesfully Added".green.bold.underline);
+    }
+}
 
 async function applicationBrain() {
     console.log("calling");
