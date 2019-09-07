@@ -134,7 +134,8 @@ async function validateLogin(userid, password) {
 async function presentRoleBasedOptions(userRole) {
     switch (userRole) {
         case "CUSTOMER":
-            return await customerActions();
+             var customerActionStatus = await customerActions();
+             break;
 
     }
 };
@@ -265,26 +266,29 @@ async function applicationBrain() {
 };
 
 async function repeatApplication() {
-    var doYouWantToContinueResponse = await inquirerPrompt(doYouWantToContinueQuestions);
-    connection.end();
-    connection = mysql.createConnection({
-        host: "localhost",
-        port: 3306,
-        user: "root",
-        password: process.env.dbpassword,
-        database: process.env.dbname
-    });
-    console.clear();
-    if (loggedInStatus) {
-        if (doYouWantToContinueResponse.userChoice == "user-continue") {
-            var repeatApp1 = await presentRoleBasedOptions(loginUserRole)
+
+    do {
+        var doYouWantToContinueResponse = await inquirerPrompt(doYouWantToContinueQuestions);
+        connection.end();
+        connection = mysql.createConnection({
+            host: "localhost",
+            port: 3306,
+            user: "root",
+            password: process.env.dbpassword,
+            database: process.env.dbname
+        });
+        console.clear();
+        if (loggedInStatus) {
+            if (doYouWantToContinueResponse.userChoice == "user-continue") {
+                var repeatApp1 = await presentRoleBasedOptions(loginUserRole)
+            } else {
+                loggedInStatus = false;
+                var repeatApp1 = await applicationBrain();
+            }
         } else {
-            loggedInStatus = false;
             var repeatApp1 = await applicationBrain();
         }
-    } else {
-        var repeatApp1 = await applicationBrain();
-    }
+    } while (loggedInStatus)
 }
 
 applicationBrain();
