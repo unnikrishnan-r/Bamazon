@@ -7,6 +7,7 @@ const colors = require("colors");
 const table = require("table");
 
 var productCatalog = [];
+var loggedInStatus = false;
 var loginUserId = "";
 var loginUserRole = "";
 var separator = "*****************************************************"
@@ -63,6 +64,21 @@ var loginQuestions = [{
     }
 ];
 
+var doYouWantToContinueQuestions = [{
+    type: "list",
+    message: "Please choose what you wish to do",
+    name: "userChoice",
+    choices: [{
+            name: "Continue",
+            value: "user-continue"
+        },
+        {
+            name: "Quit",
+            value: "user-quit"
+        }
+    ]
+}];
+
 var customerPanelQuestions = [{
         type: "number",
         message: "Enter product ID that you are interested in",
@@ -103,13 +119,13 @@ function inquirerPrompt(questions) {
 };
 
 async function validateLogin(userid, password) {
+    // console.log(connection)
     var connectionState = await makeConnection();
     if (connectionState == "connected") {
         var queryResult = await queryTable(checkLoginQuery, [
             userid,
             sha1(password)
         ]);
-        console.log(queryResult[0]);
         return queryResult.length > 0 ? [queryResult[0].user_id, queryResult[0].user_role_name] :
             false;
     }
@@ -119,6 +135,7 @@ async function presentRoleBasedOptions(userRole) {
     switch (userRole) {
         case "CUSTOMER":
             return await customerActions();
+
     }
 };
 
@@ -131,18 +148,22 @@ async function customerActions() {
             productRecord = element;
         }
     });
+    if (Object.keys(productRecord).length > 0) {
 
-    var recordSaleStatus = await recordSaleTransaction(
-        loginUserId,
-        productRecord,
-        customerResponse.inputPurchaseQty
-    );
-
-    if (recordSaleStatus == true) {
-        var decrementInventory = await decrementInventoryStatus(
-            productRecord.product_id,
-            productRecord.stock_qty - customerResponse.inputPurchaseQty
+        var recordSaleStatus = await recordSaleTransaction(
+            loginUserId,
+            productRecord,
+            customerResponse.inputPurchaseQty
         );
+
+        if (recordSaleStatus == true) {
+            var decrementInventory = await decrementInventoryStatus(
+                productRecord.product_id,
+                productRecord.stock_qty - customerResponse.inputPurchaseQty
+            );
+        }
+    } else {
+        console.log("Thats not a product that we carry.. SORRY!!")
     }
 };
 
@@ -229,16 +250,41 @@ async function applicationBrain() {
         loginUserId = userDetails[0];
         loginUserRole = userDetails[1];
         if (loginUserId) {
-            console.log("Login validated".green.bold);
+            console.log(`Logged in as ${loginUserRole}`.green.bold);
+            loggedInStatus = true;
             var userRoleOperation = await presentRoleBasedOptions(loginUserRole);
-            //   console.log("123", userRoleOperation);
+            var repeatApp = await repeatApplication();
         } else {
-            console.log("Login incorrect!!!");
+            console.log("Login incorrect!!!".red.bold);
+            var repeatApp = await repeatApplication();
             return;
         }
     } else {
         var signupResponse = await askSignupQuestion();
     }
 };
+
+async function repeatApplication() {
+    var doYouWantToContinueResponse = await inquirerPrompt(doYouWantToContinueQuestions);
+    connection.end();
+    connection = mysql.createConnection({
+        host: "localhost",
+        port: 3306,
+        user: "root",
+        password: process.env.dbpassword,
+        database: process.env.dbname
+    });
+    console.clear();
+    if (loggedInStatus) {
+        if (doYouWantToContinueResponse.userChoice == "user-continue") {
+            var repeatApp1 = await presentRoleBasedOptions(loginUserRole)
+        } else {
+            loggedInStatus = false;
+            var repeatApp1 = await applicationBrain();
+        }
+    } else {
+        var repeatApp1 = await applicationBrain();
+    }
+}
 
 applicationBrain();
