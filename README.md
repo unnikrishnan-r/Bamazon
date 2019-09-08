@@ -34,3 +34,10 @@ The app is being built in 4 phases with below functionalities.
 ## ER diagram showing the database design is also provided:
 ![Alt Text](./er_diagram.png)
 
+
+## Known Issues:
+
+1. Validation for price input. Current price field can hold a max of 999.99.
+   Need to add a validation if user enter a larger amount
+
+2. Validation for number fields in user input (Quantity to be purchased etc)

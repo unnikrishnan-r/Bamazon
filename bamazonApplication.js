@@ -34,7 +34,7 @@ where products.dept_id = department.dept_id and stock_qty < ? order by product_i
 const createSaleRecordQuery = "INSERT INTO sale_history SET ?";
 
 const updateInventoryQuery =
-    "UPDATE products SET stock_qty = ? WHERE product_id = ?";
+    "UPDATE products SET stock_qty = ? , unit_price = ? WHERE product_id = ?";
 
 var connection = mysql.createConnection({
     host: "localhost",
@@ -55,6 +55,10 @@ var welcomeQuestions = [{
         {
             name: "Sign Up",
             value: "entry-action-signup"
+        },
+        {
+            name: "Quit",
+            value: "entry-action-quit"
         }
     ]
 }];
@@ -158,6 +162,23 @@ var addProductQuestions = [{
     }
 ];
 
+var updateProductPanelQuestions = [{
+        type: "number",
+        message: "Enter product ID that you are looking to update",
+        name: "product_id"
+    },
+    {
+        type: "number",
+        message: "Please enter the latest inventory?",
+        name: "stock_qty"
+    },
+    {
+        type: "number",
+        message: "Please enter the price of the product",
+        name: "unit_price"
+    },
+];
+
 function makeConnection() {
     return new Promise(resolve => {
         connection.connect(function (err) {
@@ -251,6 +272,10 @@ async function managerActions() {
         case "low-inventory-report":
             var lowInventoryStockReportStatus = await showLowInventoryReport();
             break;
+
+        case "update-product":
+            var showProductCatalogStatus = await showProductCatalog();
+            var updateProductStatus = await updateProduct();
     }
 }
 
@@ -367,6 +392,21 @@ async function showLowInventoryReport() {
     return 1;
 };
 
+async function updateProduct() {
+    var updateProductResponse = await inquirerPrompt(updateProductPanelQuestions);
+    console.log(updateProductResponse);
+    if (connection.state != "authenticated") {
+        var connectionState = await makeConnection();
+    }
+    var queryResult = await queryTable(updateInventoryQuery, [updateProductResponse.stock_qty, updateProductResponse.unit_price, updateProductResponse.product_id]);
+    if (queryResult.affectedRows == 1) {
+        console.log("Product Succesfully Updated".green.bold.underline);
+    } else {
+        console.log("Could not find that product".red.bold.underline);
+    }
+
+};
+
 async function addProduct() {
     var addProductResponse = await inquirerPrompt(addProductQuestions);
     if (connection.state != "authenticated") {
@@ -376,7 +416,7 @@ async function addProduct() {
     if (queryResult.affectedRows == 1) {
         console.log("Product Succesfully Added".green.bold.underline);
     }
-}
+};
 
 async function applicationBrain() {
     console.log("calling");
@@ -405,6 +445,8 @@ async function applicationBrain() {
         var signupResponse = await askSignupQuestion();
     }
 };
+
+
 
 async function repeatApplication() {
 
