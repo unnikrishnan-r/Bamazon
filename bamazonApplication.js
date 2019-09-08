@@ -34,7 +34,11 @@ where products.dept_id = department.dept_id and stock_qty < ? order by product_i
 const createSaleRecordQuery = "INSERT INTO sale_history SET ?";
 
 const updateInventoryQuery =
+    "UPDATE products SET stock_qty = ? WHERE product_id = ?";
+
+const updateProductQuery =
     "UPDATE products SET stock_qty = ? , unit_price = ? WHERE product_id = ?";
+
 
 var connection = mysql.createConnection({
     host: "localhost",
@@ -121,6 +125,10 @@ var managerPanelQuestions = [{
         {
             name: "Product Catalog",
             value: "product-catalog"
+        },
+        {
+            name: "Quit",
+            value: "manager-quits"
         }
     ]
 
@@ -194,7 +202,7 @@ async function queryTable(query, inputs) {
             if (err) throw err;
             resolve(res);
         });
-        console.log(query1.sql);
+        // console.log(query1.sql);
     });
 };
 
@@ -276,6 +284,10 @@ async function managerActions() {
         case "update-product":
             var showProductCatalogStatus = await showProductCatalog();
             var updateProductStatus = await updateProduct();
+            break;
+
+        case "manager-quits":
+            return;
     }
 }
 
@@ -398,7 +410,7 @@ async function updateProduct() {
     if (connection.state != "authenticated") {
         var connectionState = await makeConnection();
     }
-    var queryResult = await queryTable(updateInventoryQuery, [updateProductResponse.stock_qty, updateProductResponse.unit_price, updateProductResponse.product_id]);
+    var queryResult = await queryTable(updateProductQuery, [updateProductResponse.stock_qty, updateProductResponse.unit_price, updateProductResponse.product_id]);
     if (queryResult.affectedRows == 1) {
         console.log("Product Succesfully Updated".green.bold.underline);
     } else {
@@ -419,34 +431,42 @@ async function addProduct() {
 };
 
 async function applicationBrain() {
-    console.log("calling");
     console.clear();
     var welcomeResponse = await inquirerPrompt(welcomeQuestions);
-    if (welcomeResponse.entryAction === "entry-action-login") {
-        console.clear();
-        var loginResponse = await inquirerPrompt(loginQuestions);
-        var userDetails = await validateLogin(
-            loginResponse.inputUserName,
-            loginResponse.inputUserPassword
-        );
-        loginUserId = userDetails[0];
-        loginUserRole = userDetails[1];
-        if (loginUserId) {
-            console.log(`Logged in as ${loginUserRole}`.green.bold);
-            loggedInStatus = true;
-            var userRoleOperation = await presentRoleBasedOptions(loginUserRole);
-            var repeatApp = await repeatApplication();
-        } else {
-            console.log("Login incorrect!!!".red.bold);
-            var repeatApp = await repeatApplication();
+    switch (welcomeResponse.entryAction) {
+        case "entry-action-login":
+            var loggedInStatus = await loginfunction();
+            break;
+
+        case "entry-action-signup":
+            break;
+
+        case "entry-action-quit":
             return;
-        }
-    } else {
-        var signupResponse = await askSignupQuestion();
+
     }
 };
 
-
+async function loginfunction() {
+    console.clear();
+    var loginResponse = await inquirerPrompt(loginQuestions);
+    var userDetails = await validateLogin(
+        loginResponse.inputUserName,
+        loginResponse.inputUserPassword
+    );
+    loginUserId = userDetails[0];
+    loginUserRole = userDetails[1];
+    if (loginUserId) {
+        console.log(`Logged in as ${loginUserRole}`.green.bold);
+        loggedInStatus = true;
+        var userRoleOperation = await presentRoleBasedOptions(loginUserRole);
+        var repeatApp = await repeatApplication();
+    } else {
+        console.log("Login incorrect!!!".red.bold);
+        var repeatApp = await repeatApplication();
+        return;
+    }
+};
 
 async function repeatApplication() {
 
@@ -466,12 +486,13 @@ async function repeatApplication() {
                 var repeatApp1 = await presentRoleBasedOptions(loginUserRole)
             } else {
                 loggedInStatus = false;
-                var repeatApp1 = await applicationBrain();
+                // var repeatApp1 = await applicationBrain();
+                return;
             }
         } else {
             var repeatApp1 = await applicationBrain();
         }
     } while (loggedInStatus)
-}
+};
 
 applicationBrain();
