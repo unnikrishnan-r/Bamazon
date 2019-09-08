@@ -406,7 +406,6 @@ async function showLowInventoryReport() {
 
 async function updateProduct() {
     var updateProductResponse = await inquirerPrompt(updateProductPanelQuestions);
-    console.log(updateProductResponse);
     if (connection.state != "authenticated") {
         var connectionState = await makeConnection();
     }

@@ -11,11 +11,11 @@ The app is being built in 4 phases with below functionalities.
     is not available, it intimates the customer appropriately.
     Even unfufilled sale transactions are recorded for future analytics.
 
-### Upcoming Releases
-
 3. Manager View
    Allows a manager to generate reports on top selling items, low inventory items, departments with poor order fulfillment rate etc
    Also allows a manager to add a new product or update an existing product's price, stock quantity etc
+   
+### Upcoming Releases
 
 4. SUPERVISOR View
    Allows supervisor to generate profit-loss report by department
